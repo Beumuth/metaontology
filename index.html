@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Instances</title>
+    <script type="text/javascript" src="metaontology.js"></script>
+    <script type="text/javascript">
+        Controller = M.Module.of((
+            instanceToHTML = id => {
+                const parents = M.Instance.getAllParents(id);
+                return `<li id='instance${id}' class='instance'>
+                    <span
+                        class="instanceHeader"
+                        onclick="Controller.toggleInstanceDetails(event.currentTarget.parentElement);"
+                     >
+                        <span class="instanceDetailsExpander">+</span>
+                        <span class="instanceName">${M.Instance.nameOf(M.Element.all[id][1])}</span>
+                    </span>
+                    <div class="instanceDetails">
+                        <div class="instanceLineageContainer">
+                            <span class="instanceLineageHeader">Lineage:</span>
+                            <ol class='instanceLineage'>
+                                ${[id].concat(parents)
+                                    .map(ancestor => `<li class='instanceAncestor'>${ancestor}</li>`)
+                                    .join("")}
+                            </ol>
+                        </div>
+                        <div class="instanceControls">
+                            <div class="renameContainer">
+                                <input type="text" class="instanceName">
+                                <button
+                                    class="renameInstanceButton"
+                                    onclick="Controller.renameInstance(
+                                        ${id},
+                                        event.currentTarget.parentElement.querySelector('.instanceName'))"
+                                >
+                                    Rename
+                                </button>
+                            </div>
+                            <div class="addTagContainer">
+                                <input type="number" class="tagTo">
+                                <button
+                                    class="tagButton"
+                                    onclick="Controller.tagOnClick(
+                                        ${id},
+                                        event.currentTarget.parentElement.querySelector('.tagTo'))">
+                                    Tag
+                                </button>
+                            </div>
+                            <div class="deleteButtonContainer">
+                                <button class="deleteInstanceButton" onclick="Controller.deleteOnClick(${id})">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        ${instancesToHTML(M.Instance.getAllTags(id))}
+                    </div>
+                </li>`;},
+            instancesToHTML = instances => `<ul class="instances">${instances.map(instanceToHTML).join("")}</ul>`,
+            printInstances = instances => document.querySelector("#instanceBrowser .instances").outerHTML =
+                instancesToHTML(instances)
+        ) => ({
+            printInstances: printInstances,
+            searchOnClick: () => {
+                const id = Number.parseInt(document.querySelector('#searchInput').value);
+                printInstances(M.Element.exists(id) === true ? [id] : []);},
+            createNodeOnClick: () => printInstances([M.Element.createAutoNode()]),
+            toggleInstanceDetails: instanceElement => {
+                const instanceDetails = instanceElement.querySelector('.instanceDetails');
+                const expander = instanceElement.querySelector(".instanceDetailsExpander");
+                if(instanceDetails.dataset.expanded !== 'true') {
+                    instanceDetails.dataset.expanded = "true";
+                    expander.textContent = '-';
+                } else {
+                    instanceDetails.dataset.expanded = "false";
+                    expander.textContent = '+';}},
+            tagOnClick: (from, toInput) => {
+                document
+                    .querySelector(`#instance${from} .instances`)
+                    .insertAdjacentHTML("beforeend",
+                        instanceToHTML(M.Instance.tagWith(from, Number.parseInt(toInput.value))));
+                toInput.value = "";},
+            renameInstance: (id, nameInput) => {
+                M.Instance.rename(id, nameInput.value.trim());
+                nameInput.value = null;
+                nameInput.closest(".instance").querySelector(".instanceName").textContent = M.Instance.nameOf(id);},
+            deleteOnClick: id => M.Instance.isUnreferenced(id) ?
+                confirm(`Are you sure you want to delete Instance ${M.Instance.nameOf(id)}`) === true ?
+                    (
+                        M.Instance.delete(id),
+                        document.querySelector(`#instance${id}`).remove()
+                    ) :
+                    undefined :
+                alert(`Instance ${M.Instance.nameOf(id)} cannot be deleted due to being referenced`)}));
+    </script>
+    <style>
+        body {
+            background-color: #0e0e17;
+            color: #D0D0D0;}
+
+        h1 {
+            margin-bottom: 5px; }
+
+        ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;}
+
+        nav {
+            background-color: #303030;
+            border: solid 1px black;
+            padding-left: 2px;
+            padding-bottom: 2px;}
+
+        ol {
+            list-style: none;
+            margin: 0;
+            padding: 0;}
+
+        #searchInput {
+            width: 65px;}
+
+        .noselect {
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none; /* Safari */
+            -khtml-user-select: none; /* Konqueror HTML */
+            -moz-user-select: none; /* Old versions of Firefox */
+            -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome, Edge, Opera and Firefox */}
+
+        .instanceHeader {
+            cursor: pointer;
+            display: inline-block;}
+
+        .instanceDetails {
+            margin-left: 15px;}
+
+        .instanceDetails:not([data-expanded='true']) {
+            display: none;}
+
+        .instanceDetailsExpander {
+            display: inline-block;
+            width: 10px;}
+
+        .instanceLineage {
+            display: inline-block; }
+
+        .instanceLineage li {
+            display: inline;}
+
+        .instanceLineage li:not(:last-child):after {
+            content: " < "}
+    </style>
+</head>
+<body onload="Controller.printInstances(M.Element.allNodes())">
+    <div id="instanceBrowser">
+        <h1>Instance Browser</h1>
+        <div id="createRootContainer">
+            <button id="createNode" onclick="Controller.createNodeOnClick();">New Node</button>
+        </div>
+        <div id="searchContainer">
+            <input id="searchInput" type="number" name="search">
+            <button type="button" onclick="Controller.searchOnClick();">
+                Search
+            </button>
+        </div>
+        <ul class="instances">
+
+        </ul>
+    </div>
+</body>
+</html>
