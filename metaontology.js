@@ -45,7 +45,8 @@ let M = ((
                         (elementComponent, i) => i <=2 ?
                             Number.parseInt(elementComponent) :
                             elementComponent === "" ? null : elementComponent);
-                    elements[element[0]] = element.slice(1);});},
+                    elements[element[0]] = element.slice(1);});
+                return elements;},
             elementsToString: elements => Object.entries(elements)
                 .map(entry=>`${entry[0]} ${entry[1][0]} ${entry[1][1]} ${entry[1][2] ?? ""}`)
                 .join("\n")},
@@ -62,7 +63,7 @@ let M = ((
                 Element.elementsToString(Element.all)),
             nextId: Module.of(() => {
                 const ids = Object.keys(Element.all);
-                return ids.length === 0 ? 1 : ids[ids.length - 1];})}),
+                return ids.length === 0 ? 1 : 1+Number.parseInt(ids[ids.length - 1]);})}),
         element5=Element=Objects.withFields(Element, {
             exists: id => undefined !== Element.all[id],
             existsWithAOrB: (a, b) => Object.values(Element.all).some(element => element[0] === a || element[1] === b),

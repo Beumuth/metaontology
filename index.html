@@ -58,13 +58,55 @@
                 </li>`;},
             instancesToHTML = instances => `<ul class="instances">${instances.map(instanceToHTML).join("")}</ul>`,
             printInstances = instances => document.querySelector("#instanceBrowser .instances").outerHTML =
-                instancesToHTML(instances)
+                instancesToHTML(instances),
+            clickTempElement = element => {
+                element.style.display = "none";
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);}
         ) => ({
+            printAllNodes: () => printInstances(M.Element.allNodes()),
             printInstances: printInstances,
             searchOnClick: () => {
                 const id = Number.parseInt(document.querySelector('#searchInput').value);
                 printInstances(M.Element.exists(id) === true ? [id] : []);},
             createNodeOnClick: () => printInstances([M.Element.createAutoNode()]),
+            saveOnClick: () => M.Element.saveToLocalStorage(),
+            downloadOnClick: () => {
+                //Convert the shapes to a text string and open in a new tab
+                const tempLink = document.createElement('a');
+                tempLink.setAttribute(
+                    'href',
+                    'data:text/plain;charset=utf-8,' +
+                    encodeURIComponent(M.Element.elementsToString(M.Element.all)));
+                tempLink.setAttribute('download', "elements.txt");
+                clickTempElement(tempLink);},
+            importOnClick: uploadCompleteListener => {
+                const fileInput = document.createElement("input");
+                fileInput.type = "file";
+                fileInput.accept = ".txt";
+                fileInput.multiple = true;
+                fileInput.onchange = () => M.Module.of((
+                    files=fileInput.files,
+                    numLoaded=0,
+                    elements={},
+                    fileReader = new FileReader(),
+                    readNext=()=>fileReader.readAsText(files[numLoaded])
+                ) => {
+                    fileReader.addEventListener('loadend', e => {
+                        const elementsInFile = M.Element.elementsFromString(e.target.result);
+                        Object
+                            .keys(elementsInFile)
+                            .filter(id => ! (id in elements))
+                            .forEach(id => elements[id] = elementsInFile[id]);
+                        if(++numLoaded===files.length) {
+                            M.Element.all = elements;
+                            M.Element.saveToLocalStorage();
+                            uploadCompleteListener();}
+                        else {
+                            readNext();}});
+                    readNext();});
+                clickTempElement(fileInput);},
             toggleInstanceDetails: instanceElement => {
                 const instanceDetails = instanceElement.querySelector('.instanceDetails');
                 const expander = instanceElement.querySelector(".instanceDetailsExpander");
@@ -153,11 +195,14 @@
             content: " < "}
     </style>
 </head>
-<body onload="Controller.printInstances(M.Element.allNodes())">
+<body onload="Controller.printAllNodes();">
     <div id="instanceBrowser">
         <h1>Instance Browser</h1>
-        <div id="createRootContainer">
+        <div id="actionsRow">
             <button id="createNode" onclick="Controller.createNodeOnClick();">New Node</button>
+            <button id="save" onclick="Controller.saveOnClick();">Save</button>
+            <button id="import" onclick="Controller.importOnClick(Controller.printAllNodes);">Import</button>
+            <button id="download" onclick="Controller.downloadOnClick();">Download</button>
         </div>
         <div id="searchContainer">
             <input id="searchInput" type="number" name="search">
