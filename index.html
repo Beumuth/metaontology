@@ -6,59 +6,8 @@
     <script type="text/javascript" src="metaontology.js"></script>
     <script type="text/javascript">
         Controller = M.Module.of((
-            instanceToHTML = id => {
-                const parents = M.Instance.getAllParents(id);
-                return `<li id='instance${id}' class='instance'>
-                    <span
-                        class="instanceHeader"
-                        onclick="Controller.toggleInstanceDetails(event.currentTarget.parentElement);"
-                     >
-                        <span class="instanceDetailsExpander">+</span>
-                        <span class="instanceName">${M.Instance.nameOf(M.Element.all[id][1])}</span>
-                    </span>
-                    <div class="instanceDetails">
-                        <div class="instanceLineageContainer">
-                            <span class="instanceLineageHeader">Lineage:</span>
-                            <ol class='instanceLineage'>
-                                ${[id].concat(parents)
-                                    .map(ancestor => `<li class='instanceAncestor'>${ancestor}</li>`)
-                                    .join("")}
-                            </ol>
-                        </div>
-                        <div class="instanceControls">
-                            <div class="renameContainer">
-                                <input type="text" class="instanceName">
-                                <button
-                                    class="renameInstanceButton"
-                                    onclick="Controller.renameInstance(
-                                        ${id},
-                                        event.currentTarget.parentElement.querySelector('.instanceName'))"
-                                >
-                                    Rename
-                                </button>
-                            </div>
-                            <div class="addTagContainer">
-                                <input type="number" class="tagTo">
-                                <button
-                                    class="tagButton"
-                                    onclick="Controller.tagOnClick(
-                                        ${id},
-                                        event.currentTarget.parentElement.querySelector('.tagTo'))">
-                                    Tag
-                                </button>
-                            </div>
-                            <div class="deleteButtonContainer">
-                                <button class="deleteInstanceButton" onclick="Controller.deleteOnClick(${id})">
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                        ${instancesToHTML(M.Instance.getAllTags(id))}
-                    </div>
-                </li>`;},
-            instancesToHTML = instances => `<ul class="instances">${instances.map(instanceToHTML).join("")}</ul>`,
-            printInstances = instances => document.querySelector("#instanceBrowser .instances").outerHTML =
-                instancesToHTML(instances),
+            printInstances = instances => document.querySelector("#instanceBrowser .instances").innerHTML =
+                instances.map(instance => `<li class='instance'>${M.Instance.toHTML(instance)}</li>`).join(""),
             clickTempElement = element => {
                 element.style.display = "none";
                 document.body.appendChild(element);
@@ -67,10 +16,10 @@
         ) => ({
             printAllNodes: () => printInstances(M.Element.allNodes()),
             printInstances: printInstances,
-            searchOnClick: () => {
-                const id = Number.parseInt(document.querySelector('#searchInput').value);
+            filterOnClick: () => {
+                const query = document.querySelector('#filter');
                 printInstances(M.Element.exists(id) === true ? [id] : []);},
-            createNodeOnClick: () => printInstances([M.Element.createAutoNode()]),
+            createNodeOnClick: () => printInstances([M.Instance.new()]),
             saveOnClick: () => M.Element.saveToLocalStorage(),
             downloadOnClick: () => {
                 //Convert the shapes to a text string and open in a new tab
@@ -120,7 +69,7 @@
                 document
                     .querySelector(`#instance${from} .instances`)
                     .insertAdjacentHTML("beforeend",
-                        instanceToHTML(M.Instance.tagWith(from, Number.parseInt(toInput.value))));
+                        M.Instance.toHTML(M.Instance.tagWith(from, Number.parseInt(toInput.value))));
                 toInput.value = "";},
             renameInstance: (id, nameInput) => {
                 M.Instance.rename(id, nameInput.value.trim());
@@ -199,15 +148,15 @@
     <div id="instanceBrowser">
         <h1>Instance Browser</h1>
         <div id="actionsRow">
-            <button id="createNode" onclick="Controller.createNodeOnClick();">New Node</button>
+            <button id="createNode" onclick="Controller.createNodeOnClick();">New</button>
             <button id="save" onclick="Controller.saveOnClick();">Save</button>
             <button id="import" onclick="Controller.importOnClick(Controller.printAllNodes);">Import</button>
             <button id="download" onclick="Controller.downloadOnClick();">Download</button>
         </div>
         <div id="searchContainer">
-            <input id="searchInput" type="number" name="search">
-            <button type="button" onclick="Controller.searchOnClick();">
-                Search
+            <input id="searchInput" type="text" name="filter">
+            <button type="button" onclick="Controller.filterOnClick();">
+                Filter
             </button>
         </div>
         <ul class="instances">

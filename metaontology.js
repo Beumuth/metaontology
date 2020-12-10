@@ -158,6 +158,7 @@ let M = ((
                 return id;},
             createLoopOn: (id, idOn) => Element.create(id, idOn, idOn),
             createAutoLoopOn: idOn => Element.createAutoId(idOn, idOn),
+            createAutoEdge: (idFrom, idTo) => Element.createAutoId(idFrom, idTo),
             updateAll: elements => elements.forEach(element => Element.update(...element)),
             deleteAll: ids => ids.forEach(Element.delete)}),
         element7=Element=Objects.withFields(Element, {
@@ -180,11 +181,22 @@ let M = ((
     ) => Element),
     Instance=Module.of((
         Instance={
-            root: Element.createAutoNode,
-            tag: instance => Element.createAutoPendantFrom(instance),
+            new: Element.createAutoNode,
+            nameOf: id => {
+                const element = Element.all[id];
+                return element.length < 3 ? `${id}` : element[2] ?? `${id}`;}},
+        instance2=Objects.withFields(Instance, {
             tagWith: (instance, tag) => Element.createAutoId(instance, tag),
             getAllTags: instance => Element.connectedFrom(instance),
-            getAllParents: Module.of((next= i=>Element.all[i][0]) => instance => {
+            getAllTagsWithName: (instance, name) => Instance
+                .getAllTags(instance)
+                .filter(tag => Instance.nameOf(tag) === name),
+            firstMatchingTag: (instance, predicate) => {
+                //Order: instance's tags, instance's parents' tags,
+                const tags = instance.getAllTags(instance);
+                tags.find(predicate) ?? tags.find(tag => Instance.firstMatchingTag())
+                return undefined;},
+            allParents: Module.of((next= i=>Element.all[i][0]) => instance => {
                 if(! Element.exists(instance)) {
                     return [];}
                 const parents = [];
@@ -194,11 +206,74 @@ let M = ((
                     curParent = next(curParent);}
                 return parents;}),
             isUnreferenced: Element.isDetached,
+            byName: name => Element.all.find(element => element.length >= 3 && element[2] === name),
+            rename: (id, name) => Element.all[id][2] = name,
             delete: Element.delete,
-            nameOf: id => {
-                const element = Element.all[id];
-                return element.length < 3 ? `${id}` : element[2] ?? `${id}`;},
-            rename: (id, name) => Element.all[id][2] = name}
+            hasReference: (instance, name) => Instance
+                .getAllTagsWithName(instance, "Reference")
+                .some(reference => Instance.nameOf(reference) === name),
+            valueOf: (instance, referenceName) => {
+
+            },
+            toHTML: instance => {
+                const parents = Instance.allParents(instance);
+                return `<li id='instance${instance}' class='instance'>
+                    <span
+                        class="instanceHeader"
+                        onclick="Controller.toggleInstanceDetails(event.currentTarget.parentElement);"
+                     >
+                        <span class="instanceDetailsExpander">+</span>
+                        <span class="instanceName">${M.Instance.nameOf(M.Element.all[instance][1])}</span>
+                    </span>
+                    <div class="instanceDetails">
+                        <div class="instanceLineageContainer">
+                            <span class="instanceLineageHeader">Lineage:</span>
+                            <ol class='instanceLineage'>
+                                ${[instance].concat(parents)
+                    .map(ancestor => `<li class='instanceAncestor'>${ancestor}</li>`)
+                    .join("")}
+                            </ol>
+                        </div>
+                        <div class="instanceControls">
+                            <div class="renameContainer">
+                                <input type="text" class="instanceName">
+                                <button
+                                    class="renameInstanceButton"
+                                    onclick="Controller.renameInstance(
+                                        ${instance},
+                                        event.currentTarget.parentElement.querySelector('.instanceName'))"
+                                >
+                                    Rename
+                                </button>
+                            </div>
+                            <div class="addTagContainer">
+                                <input type="number" class="tagTo">
+                                <button
+                                    class="tagButton"
+                                    onclick="Controller.tagOnClick(
+                                        ${instance},
+                                        event.currentTarget.parentElement.querySelector('.tagTo'))">
+                                    Tag
+                                </button>
+                            </div>
+                            <div class="deleteButtonContainer">
+                                <button class="deleteInstanceButton" onclick="Controller.deleteOnClick(${instance})">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                        <ul class="instances tags">
+                            ${Instance.getAllTags(instance).map(tag=>
+                                `<li class='tag'>${Instance.toHTML(tag).join("")}</li>`)}
+                        </ul>
+                    </div>
+                </li>`;},
+            Reference: {
+                create: (context, key, value) => {
+                    const reference = Instance.new();
+
+                    return reference;}}
+        }),
     ) => Instance)
 ) => ({
     Module: Module,
