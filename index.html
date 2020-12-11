@@ -6,8 +6,9 @@
     <script type="text/javascript" src="metaontology.js"></script>
     <script type="text/javascript">
         Controller = M.Module.of((
+            instanceToListItem=instance=>`<li class='instanceItem'>${M.Instance.toHTML(instance)}</li>`,
             printInstances = instances => document.querySelector("#instanceBrowser .instances").innerHTML =
-                instances.map(instance => `<li class='instance'>${M.Instance.toHTML(instance)}</li>`).join(""),
+                instances.map(instanceToListItem).join(""),
             clickTempElement = element => {
                 element.style.display = "none";
                 document.body.appendChild(element);
@@ -16,9 +17,13 @@
         ) => ({
             printAllNodes: () => printInstances(M.Element.allNodes()),
             printInstances: printInstances,
-            filterOnClick: () => {
-                const query = document.querySelector('#filter');
-                printInstances(M.Element.exists(id) === true ? [id] : []);},
+            filterOnClick: () => M.Module.of((
+                query = document.querySelector('#filter').value.trim()
+            ) => printInstances(query.startsWith("[") ?
+                M.Module.of((
+                    id=Number.parseInt(query.substr(1, query.indexOf("]")))
+                ) => M.Element.exists(id) ? [id] : []) :
+                M.Instance.withName(query))),
             createNodeOnClick: () => printInstances([M.Instance.new()]),
             saveOnClick: () => M.Element.saveToLocalStorage(),
             downloadOnClick: () => {
@@ -38,18 +43,18 @@
                 fileInput.onchange = () => M.Module.of((
                     files=fileInput.files,
                     numLoaded=0,
-                    elements={},
+                    elements=[],
                     fileReader = new FileReader(),
                     readNext=()=>fileReader.readAsText(files[numLoaded])
                 ) => {
                     fileReader.addEventListener('loadend', e => {
-                        const elementsInFile = M.Element.elementsFromString(e.target.result);
-                        Object
-                            .keys(elementsInFile)
-                            .filter(id => ! (id in elements))
-                            .forEach(id => elements[id] = elementsInFile[id]);
+                        elements.push(...M.Element
+                            .elementsFromString(e.target.result)
+                            .filter(element => ! M.Element.exists(element[0])));
+                        console.log(M.Element
+                            .elementsFromString(e.target.result));
                         if(++numLoaded===files.length) {
-                            M.Element.all = elements;
+                            M.Element.all.push(...elements);
                             M.Element.saveToLocalStorage();
                             uploadCompleteListener();}
                         else {
@@ -67,9 +72,9 @@
                     expander.textContent = '+';}},
             tagOnClick: (from, toInput) => {
                 document
-                    .querySelector(`#instance${from} .instances`)
+                    .querySelector(`.instance[data-id='${from}'] .instances`)
                     .insertAdjacentHTML("beforeend",
-                        M.Instance.toHTML(M.Instance.tagWith(from, Number.parseInt(toInput.value))));
+                        instanceToListItem(M.Instance.tagWith(from, Number.parseInt(toInput.value))));
                 toInput.value = "";},
             renameInstance: (id, nameInput) => {
                 M.Instance.rename(id, nameInput.value.trim());
@@ -79,7 +84,7 @@
                 confirm(`Are you sure you want to delete Instance ${M.Instance.nameOf(id)}`) === true ?
                     (
                         M.Instance.delete(id),
-                        document.querySelector(`#instance${id}`).remove()
+                        document.querySelector(`.instance[data-id='${id}']`).remove()
                     ) :
                     undefined :
                 alert(`Instance ${M.Instance.nameOf(id)} cannot be deleted due to being referenced`)}));
@@ -107,9 +112,6 @@
             list-style: none;
             margin: 0;
             padding: 0;}
-
-        #searchInput {
-            width: 65px;}
 
         .noselect {
             -webkit-touch-callout: none; /* iOS Safari */
@@ -153,8 +155,8 @@
             <button id="import" onclick="Controller.importOnClick(Controller.printAllNodes);">Import</button>
             <button id="download" onclick="Controller.downloadOnClick();">Download</button>
         </div>
-        <div id="searchContainer">
-            <input id="searchInput" type="text" name="filter">
+        <div id="filterContainer">
+            <input id="filter" type="text" name="filter">
             <button type="button" onclick="Controller.filterOnClick();">
                 Filter
             </button>
